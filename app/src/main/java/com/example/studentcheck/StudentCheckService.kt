@@ -7,6 +7,6 @@ import retrofit2.http.POST
 
 interface StudentCheckService {
     @POST("barcode/")
-    fun getBarcode(@Body()):
+    fun getBarcode(@Body userId: UserId):
             Single<BarCode>
 }
