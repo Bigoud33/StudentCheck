@@ -1,3 +1,11 @@
 <resources>
     <string name="app_name">Student Check</string>
+    <string name="test">Test</string>
+    <string name="title_activity_login">Se connecter</string>
+    <!-- Strings related to login -->
+    <string name="prompt_student_number">Numéro étudiant</string>
+    <string name="prompt_password">Mot de passe</string>
+    <string name="login_action">Se connecter</string>
+
+
 </resources>

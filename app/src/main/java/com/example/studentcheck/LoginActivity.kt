@@ -1,18 +1,20 @@
 package com.example.studentcheck
 
 import android.content.Context
-import android.support.v7.app.AppCompatActivity
+import android.content.Intent
 import android.os.Bundle
-import android.os.CountDownTimer
-import android.view.WindowManager
+import android.support.v4.app.ActivityCompat
+import android.support.v7.app.AppCompatActivity
+import android.telephony.TelephonyManager
+import android.view.View
+import android.widget.Toast
 import com.github.ajalt.timberkt.Timber
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
-import com.google.zxing.BarcodeFormat
-import com.google.zxing.MultiFormatWriter
-import com.google.zxing.WriterException
-import com.journeyapps.barcodescanner.BarcodeEncoder
-import kotlinx.android.synthetic.main.activity_main.*
+import io.reactivex.android.schedulers.AndroidSchedulers
+import io.reactivex.rxkotlin.subscribeBy
+import io.reactivex.schedulers.Schedulers
+import kotlinx.android.synthetic.main.activity_login.*
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -26,47 +28,57 @@ import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManagerFactory
 import javax.net.ssl.X509TrustManager
 
-class MainActivity : AppCompatActivity() {
+class LoginActivity : AppCompatActivity() {
+    private lateinit var service : StudentCheckService
 
-    lateinit var clientBuilder: OkHttpClient.Builder
-    lateinit var retrofit: Retrofit
+    val PERMISSION_ALL = 1
+    val PERMISSIONS = arrayOf(
+        android.Manifest.permission.READ_PHONE_STATE
+    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
-        setContentView(R.layout.activity_main)
+        setContentView(R.layout.activity_login)
+        initTimber()
+        service = provideService(provideRetrofit(provideGson(),provideHttpClientBuilder(provideHttpLoggingInterceptor(),this).build()))
+        loginButton.setOnClickListener {
 
+            displayLoader()
+            val studentNumber = studentIdEditText.text.toString()
+            val password = passwordEditText.text.toString()
+            val user = StudentSignin(studentNumber, password)
+            service.studentSignin(user)
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribeBy (
+                    onError = {
+                        hideLoader()
+                        Toast.makeText(this, it.localizedMessage, Toast.LENGTH_SHORT).show()
+                    },
+                    onSuccess = {
+                        hideLoader()
+                        if(it.error == null) {
+                            val barcode = it.barCode
+                            val intent = Intent(this, MainActivity::class.java)
+                            intent.putExtra("barcode",barcode)
+                            startActivity(intent)
+                        } else {
+                            Toast.makeText(this, it.error, Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                )
 
-        clientBuilder = provideHttpClientBuilder(provideHttpLoggingInterceptor(), this)
-        retrofit = provideRetrofit(provideGson(), clientBuilder.build())
-
-        val strBarcode = intent.getStringExtra("barcode")
-
-        val multiFormatWriter = MultiFormatWriter()
-        try {
-            val bitMatrix = multiFormatWriter.encode(strBarcode, BarcodeFormat.CODE_128, imageView.width,200)
-            val barcodeEncoder = BarcodeEncoder()
-            val bitmap = barcodeEncoder.createBitmap(bitMatrix)
-            imageView.setImageBitmap(bitmap)
-        } catch (e: WriterException) {
-            e.printStackTrace()
         }
-
-        myTimer().start()
-
     }
 
-    fun myTimer() : CountDownTimer {
-        return object : CountDownTimer(30000, 30000){
-            override fun onFinish() {
-                finish()
-            }
 
-            override fun onTick(millisUntilFinished: Long) {
 
-            }
+    fun displayLoader() {
+        progressBar.visibility = View.VISIBLE
+    }
 
-        }
+    fun hideLoader() {
+        progressBar.visibility = View.INVISIBLE
     }
 
 
@@ -140,5 +152,11 @@ class MainActivity : AppCompatActivity() {
             .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
             .client(client)
             .build()
+
+
+    fun initTimber() {
+        Timber.uprootAll()
+        Timber.plant(Timber.DebugTree())
+    }
 
 }
