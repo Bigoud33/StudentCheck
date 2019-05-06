@@ -9,4 +9,8 @@ interface StudentCheckService {
     @POST("barcode/")
     fun getBarcode(@Body userId: UserId):
             Single<BarCode>
+
+    @POST("studentsignin")
+    fun studentSignin(@Body studentSignin: StudentSignin):
+            Single<StudentSigninResponse>
 }
